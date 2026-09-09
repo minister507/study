@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>1학년 2학기 받아쓰기 팡팡!</title>
+<style>
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; padding: 12px; background: #fffde7; color: #333; display: flex; flex-direction: column; align-items: center; user-select: none; }
+  h1 { margin: 6px 0 12px; font-size: 1.5rem; color: #e65100; text-align: center; }
+  .card { background: white; border-radius: 20px; padding: 16px; width: 100%; max-width: 550px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  
+  .top-row { display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  select { font-size: 1rem; padding: 8px 10px; border-radius: 12px; border: 2px solid #ffb300; background: #fff8e1; font-weight: bold; flex: 1; }
+  .mode-box { display: flex; gap: 4px; }
+  .btn-mode { padding: 8px 10px; font-size: 0.85rem; border: 2px solid #90caf9; border-radius: 10px; background: #e3f2fd; font-weight: bold; cursor: pointer; }
+  .btn-mode.active { background: #1976d2; color: white; border-color: #1565c0; }
+
+  .status-bar { display: flex; justify-content: space-between; align-items: center; background: #ffe0b2; padding: 10px 14px; border-radius: 14px; margin-bottom: 14px; font-size: 1.05rem; font-weight: bold; }
+  .status-left { display: flex; align-items: center; gap: 8px; }
+  .btn-restart { background: #fff; border: 1.5px solid #ff9800; color: #e65100; padding: 4px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+  .btn-restart:active { background: #ffe0b2; }
+  .btn-sound { background: #ff9800; color: white; border: none; padding: 7px 14px; border-radius: 20px; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 3px 0 #e65100; }
+  .btn-sound:active { transform: translateY(2px); box-shadow: 0 1px 0 #e65100; }
+
+  /* 받아쓰기 공책 칸 */
+  .grid-container { display: flex; flex-wrap: wrap; gap: 5px; min-height: 52px; background: #fafafa; border: 2px dashed #ffa726; border-radius: 12px; padding: 8px; margin-bottom: 16px; align-items: center; }
+  .cell { width: 38px; height: 44px; border: 1px solid #cfd8dc; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; font-weight: bold; border-radius: 6px; box-shadow: inset 0 0 3px rgba(0,0,0,0.05); }
+  .cell.space { background: #e8f5e9; border: 1px dashed #81c784; }
+  .cell.space::after { content: "␣"; font-size: 0.9rem; color: #4caf50; }
+  .cell.punct { color: #d32f2f; background: #fff3e0; }
+
+  /* 터치 블록 키패드 */
+  .blocks-area { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+  .touch-btn { min-width: 44px; height: 46px; padding: 0 10px; font-size: 1.3rem; font-weight: bold; background: white; border: 2px solid #81d4fa; border-radius: 12px; cursor: pointer; box-shadow: 0 3px 0 #0288d1; display: flex; align-items: center; justify-content: center; }
+  .touch-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #0288d1; }
+  .touch-btn.space-btn { background: #f1f8e9; border-color: #a5d6a7; color: #2e7d32; font-size: 1rem; box-shadow: 0 3px 0 #388e3c; }
+  .touch-btn.punct-btn { background: #fff8e1; border-color: #ffe082; color: #e65100; box-shadow: 0 3px 0 #f57c00; }
+  .touch-btn.used { opacity: 0.2; pointer-events: none; }
+
+  /* 조작 버튼 */
+  .ctrl-row { display: flex; gap: 8px; }
+  .action-btn { flex: 1; padding: 12px; font-size: 1rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; color: white; }
+  .btn-undo { background: #78909c; box-shadow: 0 4px 0 #455a64; }
+  .btn-check { background: #4caf50; box-shadow: 0 4px 0 #2e7d32; }
+  .btn-next { background: #00bcd4; box-shadow: 0 4px 0 #00838f; }
+
+  /* 공책 모드 영역 */
+  .note-box { text-align: center; padding: 15px 5px; }
+  .answer-revealed { display: none; margin-top: 15px; padding: 14px; background: #f1f8e9; border-radius: 12px; border: 2px solid #c8e6c9; }
+  .answer-text { font-size: 1.6rem; font-weight: bold; letter-spacing: 2px; color: #1b5e20; margin-bottom: 12px; }
+
+  .feedback { text-align: center; margin-top: 12px; min-height: 26px; font-size: 1.15rem; font-weight: bold; }
+  .feedback.good { color: #2e7d32; }
+  .feedback.bad { color: #d32f2f; }
+</style>
+</head>
+<body>
+
+<h1>🎒 초1 2학기 받아쓰기</h1>
+
+<div class="card">
+  <div class="top-row">
+    <select id="gradeSelect" onchange="onGradeChange()"></select>
+    <div class="mode-box">
+      <button class="btn-mode active" id="btnModeBlock" onclick="switchMode('block')">퍼즐</button>
+      <button class="btn-mode" id="btnModeNote" onclick="switchMode('note')">공책쓰기</button>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-left">
+      <span id="quizIndex">1번 / 10</span>
+      <button class="btn-restart" onclick="restartCurrentGrade()" title="현재 급수 문제 섞어서 다시 시작">🔄 섞기</button>
+    </div>
+    <button class="btn-sound" onclick="speakText()">🔊 문제 듣기</button>
+  </div>
+
+  <!-- 1. 터치 퍼즐 모드 -->
+  <div id="sectionBlock">
+    <div class="grid-container" id="gridNotebook"></div>
+    <div class="blocks-area" id="blocksArea"></div>
+    <div class="ctrl-row">
+      <button class="action-btn btn-undo" onclick="undoChar()">⬅ 지우기</button>
+      <button class="action-btn btn-check" onclick="checkAnswer()">정답 확인 ✨</button>
+      <button class="action-btn btn-next" id="btnNextBlock" onclick="goNext()" style="display:none;">다음 문제 ➡</button>
+    </div>
+  </div>
+
+  <!-- 2. 공책 연필 쓰기 모드 -->
+  <div id="sectionNote" style="display:none;" class="note-box">
+    <p style="font-size:1.1rem; line-height:1.5; color:#555;">
+      🔊 <b>[문제 듣기]</b>를 누른 후<br>공책에 예쁘게 적어보세요!
+    </p>
+    <button class="action-btn btn-check" style="max-width:200px; margin: 0 auto 10px;" onclick="showNoteAnswer()">정답 돋보기 🔍</button>
+    
+    <div class="answer-revealed" id="noteAnswerArea">
+      <div class="answer-text" id="targetAnswer"></div>
+      <div style="display: flex; gap: 8px;">
+        <button class="action-btn" style="background:#66bb6a;" onclick="scoreNote(true)">맞았어요 ⭕</button>
+        <button class="action-btn" style="background:#ef5350;" onclick="scoreNote(false)">다시 쓸래요 ❌</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="feedback" id="feedbackText"></div>
+</div>
+
+<script>
+const DATA = {
+  1: { title: "1. 기분을 말해요", list: ["신나요.", "뿌듯해요.", "둥실둥실", "활짝", "꽁꽁", "반짝반짝", "그림책", "계곡", "보고 싶어요.", "미안했어요."] },
+  2: { title: "1. 기분을 말해요", list: ["괜찮아요.", "살랑살랑", "귀여운", "씽씽", "단풍잎", "친구들", "노래를 불렀어.", "부러워해.", "내 마음", "깜짝 놀랐어."] },
+  3: { title: "2. 낱말을 정확하게 읽어요", list: ["붉다.", "맑다.", "옳다.", "값", "낚다.", "없다.", "사과가 많다.", "모이를 먹는다.", "연필심이 닳았다.", "대단한 참외씨"] },
+  4: { title: "3. 그림일기를 써요", list: ["발표", "알맞은 크기", "된장찌개", "일곱 시", "빨갛게 익은", "자세히", "또박또박", "귀 기울여", "사과를 땄다.", "꿈을 꿉니다."] },
+  5: { title: "4. 감동을 나누어요", list: ["옛날 옛적에", "맷돌", "저녁", "몰래", "쏟아져", "쌓여 갔습니다.", "잊어버렸습니다.", "가라앉고", "바닷물이", "짜게 되었습니다."] },
+  6: { title: "5. 생각을 키워요", list: ["웃음", "별명", "돌려줄래?", "운동장", "훌라후프", "잘 돌리고 싶어서", "응원", "기특하구나!", "젊어지는", "한 장 한 장"] },
+  7: { title: "5. 생각을 키워요", list: ["책을 펼치면", "어떻게 해?", "연필 한 자루", "차 한 대", "수박 한 통", "신발 한 켤레", "수저 한 벌", "한글", "도서관", "생각합니다."] },
+  8: { title: "6. 문장을 읽고 써요", list: ["종이", "빛나고 싶니?", "도움이 필요", "꽃향기를", "맡습니다.", "하면 안 됩니다.", "위험한 일", "괜찮아 아저씨", "낮잠", "묶었어요."] },
+  9: { title: "7. 무엇이 중요할까요", list: ["불을 밝혀", "널리 알리고", "문어의 빨판", "본떠", "잘 달라붙습니다.", "칫솔걸이", "떨어지게 됩니다.", "숲속을", "걷다 보면", "도꼬마리 열매"] },
+  10: { title: "7. 무엇이 중요할까요", list: ["아무리 찾아도", "뚫어지게", "연필 깎아 오기.", "잃어버리는 바람에", "엄마한테", "세 번째니까.", "철석같이", "외쳤어.", "가방을", "열어젖혔어."] },
+  11: { title: "8. 느끼고 표현해요", list: ["덩달아", "친구랑 싸웠어.", "그네를 탔어.", "재미가 없는걸.", "텅 빈 상자", "재채기", "다 누웠다.", "어제", "들었어.", "사랑받는 친구들"] },
+  12: { title: "8. 느끼고 표현해요", list: ["달달 볶은 다음", "브로콜리", "섞어 주고", "보글보글", "끓여 주면", "끝내주게", "맛있는", "깨부숴야겠어.", "밭을 갈다가", "요술"] }
+};
+
+let grade = 1;
+let index = 0;
+let curMode = 'block';
+let enteredTokens = [];
+let currentQuizList = []; // 랜덤하게 섞인 문제 목록
+
+// --- 크로스 플랫폼 음성 지원 로직 ---
+let koVoice = null;
+
+function initVoices() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  koVoice = voices.find(v => {
+    const lang = (v.lang || '').replace('_', '-').toLowerCase();
+    return lang.includes('ko');
+  }) || null;
+}
+
+if ('speechSynthesis' in window) {
+  initVoices();
+  window.speechSynthesis.onvoiceschanged = initVoices;
+}
+
+window.onload = () => {
+  const sel = document.getElementById('gradeSelect');
+  for (let g = 1; g <= 12; g++) {
+    const opt = document.createElement('option');
+    opt.value = g;
+    opt.textContent = `<${g}급> ${DATA[g].title}`;
+    sel.appendChild(opt);
+  }
+  startGradeSession();
+};
+
+// 배열을 무작위로 섞는 셔플 함수 (Fisher-Yates)
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 급수를 시작하거나 재시작할 때 문제 순서를 무작위로 섞음
+function startGradeSession() {
+  currentQuizList = shuffleArray(DATA[grade].list);
+  index = 0;
+  loadCurrentQuiz();
+}
+
+function restartCurrentGrade() {
+  startGradeSession();
+  const fb = document.getElementById('feedbackText');
+  fb.className = 'feedback good';
+  fb.textContent = '🎲 문제 순서를 새로 섞었습니다!';
+  setTimeout(() => { fb.textContent = ''; }, 1000);
+}
+
+function onGradeChange() {
+  grade = parseInt(document.getElementById('gradeSelect').value);
+  startGradeSession();
+}
+
+function switchMode(m) {
+  curMode = m;
+  document.getElementById('btnModeBlock').classList.toggle('active', m === 'block');
+  document.getElementById('btnModeNote').classList.toggle('active', m === 'note');
+  document.getElementById('sectionBlock').style.display = m === 'block' ? 'block' : 'none';
+  document.getElementById('sectionNote').style.display = m === 'note' ? 'block' : 'none';
+  loadCurrentQuiz();
+}
+
+function loadCurrentQuiz() {
+  enteredTokens = [];
+  document.getElementById('feedbackText').textContent = '';
+  document.getElementById('btnNextBlock').style.display = 'none';
+  document.getElementById('noteAnswerArea').style.display = 'none';
+
+  const text = currentQuizList[index];
+  document.getElementById('quizIndex').textContent = `${index + 1}번 / 10`;
+
+  if (curMode === 'block') {
+    renderCells();
+    setupTouchBlocks(text);
+  } else {
+    document.getElementById('targetAnswer').textContent = text;
+  }
+}
+
+function speakText() {
+  if (!('speechSynthesis' in window)) return;
+  const text = currentQuizList[index];
+  if (!text) return;
+
+  if (!koVoice) initVoices();
+
+  window.speechSynthesis.cancel();
+
+  setTimeout(() => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    if (koVoice) {
+      u.voice = koVoice;
+    }
+    u.rate = 0.75;
+    
+    u.onerror = (e) => {
+      console.warn('TTS 재생 상태:', e);
+    };
+
+    window.speechSynthesis.speak(u);
+  }, 50);
+}
+
+function setupTouchBlocks(text) {
+  const area = document.getElementById('blocksArea');
+  area.innerHTML = '';
+  const tokens = [];
+  for (let ch of text) {
+    tokens.push(ch === ' ' ? '␣' : ch);
+  }
+  const shuffled = shuffleArray(tokens);
+
+  shuffled.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'touch-btn';
+    btn.textContent = t;
+    if (t === '␣') btn.classList.add('space-btn');
+    if (['.', '?', '!'].includes(t)) btn.classList.add('punct-btn');
+
+    btn.onclick = () => {
+      enteredTokens.push({ text: t, el: btn });
+      btn.classList.add('used');
+      renderCells();
+    };
+    area.appendChild(btn);
+  });
+}
+
+function renderCells() {
+  const grid = document.getElementById('gridNotebook');
+  grid.innerHTML = '';
+  enteredTokens.forEach(item => {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    if (item.text === '␣') c.classList.add('space');
+    else if (['.', '?', '!'].includes(item.text)) {
+      c.classList.add('punct');
+      c.textContent = item.text;
+    } else {
+      c.textContent = item.text;
+    }
+    grid.appendChild(c);
+  });
+}
+
+function undoChar() {
+  if (!enteredTokens.length) return;
+  const last = enteredTokens.pop();
+  last.el.classList.remove('used');
+  renderCells();
+}
+
+function checkAnswer() {
+  const target = currentQuizList[index];
+  const user = enteredTokens.map(t => t.text === '␣' ? ' ' : t.text).join('');
+  const fb = document.getElementById('feedbackText');
+  if (user === target) {
+    fb.className = 'feedback good';
+    fb.textContent = '🎉 딩동댕! 참 잘했어요!';
+    document.getElementById('btnNextBlock').style.display = 'block';
+  } else {
+    fb.className = 'feedback bad';
+    fb.textContent = '❌ 다시 한 번 살펴볼까요? (띄어쓰기 확인!)';
+  }
+}
+
+function showNoteAnswer() {
+  document.getElementById('noteAnswerArea').style.display = 'block';
+}
+
+function scoreNote(ok) {
+  const fb = document.getElementById('feedbackText');
+  if (ok) {
+    fb.className = 'feedback good';
+    fb.textContent = '⭐ 100점! 다음 문제로 넘어갑니다!';
+    setTimeout(goNext, 800);
+  } else {
+    fb.className = 'feedback bad';
+    fb.textContent = '💪 지우개로 바르게 한 번 고쳐 써보세요!';
+  }
+}
+
+function goNext() {
+  if (index < 9) {
+    index++;
+    loadCurrentQuiz();
+  } else {
+    alert(`🎊 축하합니다! <${grade}급> 10문제를 모두 풀었습니다!`);
+    if (grade < 12) {
+      grade++;
+      document.getElementById('gradeSelect').value = grade;
+      startGradeSession();
+    }
+  }
+}
+</script>
+</body>
+</html>
