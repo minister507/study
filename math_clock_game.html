@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>초1 수학 놀이터: 시계와 연산 팡팡! ⏰➕</title>
+<style>
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; padding: 12px; background: #ecfdf5; color: #1e293b; display: flex; flex-direction: column; align-items: center; min-height: 100vh; user-select: none; }
+  h1 { margin: 4px 0 10px; font-size: 1.5rem; color: #059669; text-align: center; }
+  
+  .game-card { background: white; border-radius: 22px; padding: 16px; width: 100%; max-width: 500px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 12px; }
+  
+  /* 대메뉴 탭 */
+  .mode-tabs { display: flex; gap: 6px; background: #f1f5f9; padding: 4px; border-radius: 14px; }
+  .tab-btn { flex: 1; padding: 10px 6px; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: bold; color: #64748b; background: transparent; cursor: pointer; transition: 0.2s; text-align: center; }
+  .tab-btn.active { background: #10b981; color: white; box-shadow: 0 2px 6px rgba(16,185,129,0.3); }
+
+  /* 점수 및 현황판 */
+  .top-status { display: flex; justify-content: space-between; align-items: center; background: #fef3c7; padding: 8px 14px; border-radius: 14px; font-weight: bold; }
+  .stage-badge { color: #b45309; font-size: 0.95rem; }
+  .score-badge { color: #d97706; font-size: 1.05rem; }
+
+  /* 미션 배너 */
+  .mission-box { background: #f0fdf4; border: 2px solid #bbf7d0; border-radius: 16px; padding: 12px; text-align: center; }
+  .mission-title { font-size: 1.35rem; font-weight: bold; color: #15803d; }
+  .mission-desc { font-size: 0.85rem; color: #166534; margin-top: 4px; }
+
+  /* === [시계 놀이터 영역] === */
+  .clock-container { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 6px 0; }
+  .analog-clock { width: 220px; height: 220px; border-radius: 50%; background: #ffffff; border: 8px solid #34d399; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.08); touch-action: none; }
+  .clock-center { width: 14px; height: 14px; background: #065f46; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
+  
+  /* 시계 숫자들 */
+  .clock-num { position: absolute; width: 30px; height: 30px; text-align: center; line-height: 30px; font-size: 1.1rem; font-weight: bold; color: #334155; }
+  
+  /* 시곗바늘 */
+  .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom center; border-radius: 6px; }
+  .hand.hour { width: 6px; height: 55px; background: #ef4444; margin-left: -3px; z-index: 5; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+  .hand.minute { width: 4px; height: 80px; background: #3b82f6; margin-left: -2px; z-index: 6; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+  
+  /* 시계 빠른 설정 버튼들 */
+  .clock-quick-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; width: 100%; }
+  .btn-quick { padding: 8px 14px; border: 2px solid #bae6fd; background: #f0f9ff; color: #0369a1; border-radius: 12px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+  .btn-quick:active { background: #e0f2fe; transform: scale(0.96); }
+
+  /* 4지선다 퀴즈형 보기 */
+  .choices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-top: 6px; }
+  .choice-btn { padding: 14px; font-size: 1.15rem; font-weight: bold; border: 2px solid #cbd5e1; background: white; border-radius: 14px; cursor: pointer; color: #1e293b; box-shadow: 0 3px 0 #94a3b8; }
+  .choice-btn:active { transform: translateY(2px); box-shadow: none; }
+
+  /* === [연산 10 팡팡 영역] === */
+  .math-view { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .bubbles-area { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 140px; padding: 10px; background: #f8fafc; border-radius: 16px; border: 2px dashed #cbd5e1; width: 100%; }
+  .bubble-btn { width: 56px; height: 56px; border-radius: 50%; font-size: 1.4rem; font-weight: bold; border: 3px solid; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.15s; box-shadow: 0 3px 0 rgba(0,0,0,0.15); }
+  .bubble-btn:active { transform: scale(0.9); }
+  .bubble-btn.selected { transform: scale(1.15); box-shadow: 0 0 12px rgba(245, 158, 11, 0.8) !important; border-color: #f59e0b !important; }
+
+  /* 컨트롤 & 피드백 */
+  .feedback-text { text-align: center; min-height: 28px; font-size: 1.15rem; font-weight: bold; }
+  .fb-good { color: #16a34a; animation: popAnim 0.3s; }
+  .fb-bad { color: #dc2626; }
+  @keyframes popAnim { 50% { transform: scale(1.1); } }
+</style>
+</head>
+<body>
+
+<h1>⏰ 초1 수학 놀이터 ➕</h1>
+
+<div class="game-card">
+  <!-- 모드 선택 탭 -->
+  <div class="mode-tabs">
+    <button class="tab-btn active" onclick="setPlayMode('clockQuiz')">🕰️ 시계 몇 시?</button>
+    <button class="tab-btn" onclick="setPlayMode('clockSet')">🖐️ 시곗바늘 돌리기</button>
+    <button class="tab-btn" onclick="setPlayMode('mathPair')">🫧 10 만들기 팡!</button>
+  </div>
+
+  <div class="top-status">
+    <span class="stage-badge" id="subTitleText">10월 단원평가 대비</span>
+    <span class="score-badge" id="scoreBadge">⭐ 0점</span>
+  </div>
+
+  <!-- 미션 안내판 -->
+  <div class="mission-box">
+    <div class="mission-title" id="missionMain">미션 제목</div>
+    <div class="mission-desc" id="missionSub">설명</div>
+  </div>
+
+  <!-- 1 & 2. 시계 화면 공통 -->
+  <div id="clockSection" class="clock-container">
+    <div class="analog-clock" id="analogClock">
+      <div class="clock-center"></div>
+      <div class="hand hour" id="hourHand"></div>
+      <div class="hand minute" id="minuteHand"></div>
+      <!-- 12개 숫자 동적 배치 -->
+    </div>
+
+    <!-- [모드 1] 시계 보고 몇 시인지 고르기 -->
+    <div class="choices-grid" id="clockChoices"></div>
+
+    <!-- [모드 2] 직접 버튼 눌러 바늘 돌리기 조작기 -->
+    <div id="clockSetControls" style="display:none; width: 100%;" class="clock-quick-btns">
+      <div style="width: 100%; text-align: center; font-size: 0.95rem; font-weight: bold; color: #475569; margin-bottom: 4px;">
+        분침(파란 바늘)을 골라보세요:
+      </div>
+      <button class="btn-quick" onclick="setPlayerMinute(0)">12 (정각 00분)</button>
+      <button class="btn-quick" onclick="setPlayerMinute(30)">6 (30분)</button>
+      
+      <div style="width: 100%; text-align: center; font-size: 0.95rem; font-weight: bold; color: #475569; margin: 8px 0 4px;">
+        시침(빨간 바늘) 시간 고르기:
+      </div>
+      <div id="hourButtonsGrid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; width: 100%;"></div>
+      
+      <button class="choice-btn" style="width: 100%; margin-top: 10px; background: #10b981; color: white; border-color: #059669; box-shadow: 0 4px 0 #047857;" onclick="checkClockSetAnswer()">
+        정답 확인 완료! ✨
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. 10 만들기 연산 팡팡 화면 -->
+  <div id="mathSection" class="math-view" style="display: none;">
+    <p style="margin: 0; color: #475569; font-size: 0.95rem; font-weight: bold; text-align: center;">
+      합쳐서 <b>10</b>이 되는 짝꿍 숫자 두 개를 팡팡 터뜨리세요!
+    </p>
+    <div class="bubbles-area" id="bubblesArea"></div>
+  </div>
+
+  <!-- 피드백 메시지 -->
+  <div class="feedback-text" id="feedbackMsg"></div>
+</div>
+
+<script>
+let playMode = 'clockQuiz'; // 'clockQuiz', 'clockSet', 'mathPair'
+let score = 0;
+let isWaiting = false;
+
+// 시계 상태 변수
+let targetH = 3;
+let targetM = 0;
+let playerH = 12;
+let playerM = 0;
+
+// 연산 풍선 상태
+let selectedBubble = null;
+
+window.onload = () => {
+  drawClockNumbers();
+  initHourButtons();
+  startNewRound();
+};
+
+// 시계판 숫자 1~12 원형 배치
+function drawClockNumbers() {
+  const clock = document.getElementById('analogClock');
+  const r = 88; // 반지름
+  const center = 102; // 중심 좌표
+
+  for (let n = 1; n <= 12; n++) {
+    const angle = (n * 30 - 90) * (Math.PI / 180);
+    const x = center + r * Math.cos(angle) - 15;
+    const y = center + r * Math.sin(angle) - 15;
+
+    const el = document.createElement('div');
+    el.className = 'clock-num';
+    el.textContent = n;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    clock.appendChild(el);
+  }
+}
+
+function initHourButtons() {
+  const grid = document.getElementById('hourButtonsGrid');
+  grid.innerHTML = '';
+  for (let h = 1; h <= 12; h++) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-quick';
+    btn.style.padding = '8px 2px';
+    btn.textContent = `${h}시`;
+    btn.onclick = () => setPlayerHour(h);
+    grid.appendChild(btn);
+  }
+}
+
+function setPlayMode(mode) {
+  playMode = mode;
+  document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+    btn.classList.toggle('active', 
+      (mode === 'clockQuiz' && idx === 0) || 
+      (mode === 'clockSet' && idx === 1) || 
+      (mode === 'mathPair' && idx === 2)
+    );
+  });
+
+  document.getElementById('clockSection').style.display = mode === 'mathPair' ? 'none' : 'flex';
+  document.getElementById('mathSection').style.display = mode === 'mathPair' ? 'flex' : 'none';
+  document.getElementById('clockChoices').style.display = mode === 'clockQuiz' ? 'grid' : 'none';
+  document.getElementById('clockSetControls').style.display = mode === 'clockSet' ? 'block' : 'none';
+
+  startNewRound();
+}
+
+function startNewRound() {
+  isWaiting = false;
+  document.getElementById('feedbackMsg').textContent = '';
+
+  if (playMode === 'clockQuiz') {
+    setupClockQuiz();
+  } else if (playMode === 'clockSet') {
+    setupClockSet();
+  } else if (playMode === 'mathPair') {
+    setupMathPair();
+  }
+}
+
+// 시곗바늘 시각 표시 렌더러
+function updateClockDisplay(h, m) {
+  const hourAngle = (h % 12) * 30 + (m / 60) * 30;
+  const minuteAngle = m * 6;
+  document.getElementById('hourHand').style.transform = `rotate(${hourAngle}deg)`;
+  document.getElementById('minuteHand').style.transform = `rotate(${minuteAngle}deg)`;
+}
+
+// [모드 1] 시계 보고 몇 시인지 맞히기
+function setupClockQuiz() {
+  // 초1 교과는 정각(0분)과 30분 위주
+  targetH = Math.floor(Math.random() * 12) + 1;
+  targetM = Math.random() < 0.5 ? 0 : 30;
+
+  updateClockDisplay(targetH, targetM);
+
+  document.getElementById('missionMain').textContent = "시계는 몇 시 몇 분일까요?";
+  document.getElementById('missionSub').textContent = "빨간 바늘(시)과 파란 바늘(분)을 잘 살펴보세요!";
+
+  const correctStr = targetM === 0 ? `${targetH}시` : `${targetH}시 30분`;
+  
+  // 오답 보기 3개 생성
+  const options = new Set([correctStr]);
+  while (options.size < 4) {
+    const rH = Math.floor(Math.random() * 12) + 1;
+    const rM = Math.random() < 0.5 ? 0 : 30;
+    options.add(rM === 0 ? `${rH}시` : `${rH}시 30분`);
+  }
+
+  const shuffled = Array.from(options).sort(() => Math.random() - 0.5);
+  const container = document.getElementById('clockChoices');
+  container.innerHTML = '';
+
+  shuffled.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = opt;
+    btn.onclick = () => {
+      if (isWaiting) return;
+      if (opt === correctStr) {
+        handleSuccess(`🎉 딩동댕! 정확히 ${correctStr} 맞습니다!`);
+      } else {
+        showWrong(`❌ 다시 볼까요? 짧은 바늘이 가리키는 숫자를 확인해 봐요!`);
+      }
+    };
+    container.appendChild(btn);
+  });
+}
+
+// [모드 2] 주어진 시각으로 시곗바늘 맞추기
+function setupClockSet() {
+  targetH = Math.floor(Math.random() * 12) + 1;
+  targetM = Math.random() < 0.5 ? 0 : 30;
+  
+  playerH = 12;
+  playerM = 0;
+  updateClockDisplay(playerH, playerM);
+
+  const timeStr = targetM === 0 ? `${targetH}시` : `${targetH}시 30분`;
+  document.getElementById('missionMain').textContent = `👉 [${timeStr}]을 만들어 보세요!`;
+  document.getElementById('missionSub').textContent = "아래 버튼을 눌러 시계 바늘을 올바른 위치로 돌려주세요.";
+}
+
+function setPlayerMinute(m) {
+  playerM = m;
+  updateClockDisplay(playerH, playerM);
+}
+
+function setPlayerHour(h) {
+  playerH = h;
+  updateClockDisplay(playerH, playerM);
+}
+
+function checkClockSetAnswer() {
+  if (isWaiting) return;
+  if (playerH === targetH && playerM === targetM) {
+    handleSuccess(`🎉 최고예요! 완벽하게 시곗바늘을 맞췄습니다!`);
+  } else {
+    showWrong(`❌ 앗! 짧은 바늘은 ${targetH} 쪽으로, 긴 바늘은 ${targetM === 0 ? '12' : '6'} 쪽이어야 해요!`);
+  }
+}
+
+// [모드 3] 10 만들기 짝꿍 연산 팡팡
+const bubbleColors = [
+  { bg: '#fee2e2', border: '#f87171', text: '#b91c1c' },
+  { bg: '#e0e7ff', border: '#818cf8', text: '#4338ca' },
+  { bg: '#fef3c7', border: '#fbbf24', text: '#b45309' },
+  { bg: '#dcfce7', border: '#4ade80', text: '#15803d' },
+  { bg: '#f3e8ff', border: '#c084fc', text: '#7e22ce' },
+];
+
+function setupMathPair() {
+  document.getElementById('missionMain').textContent = "합쳐서 10이 되는 짝꿍 팡!";
+  document.getElementById('missionSub').textContent = "더해서 10이 되는 두 숫자를 순서대로 눌러 터뜨리세요!";
+  selectedBubble = null;
+
+  const pairs = [
+    [1, 9], [2, 8], [3, 7], [4, 6], [5, 5],
+    [9, 1], [8, 2], [7, 3], [6, 4]
+  ];
+  
+  // 4쌍 (8개 숫자) 추출
+  const chosenPairs = pairs.sort(() => Math.random() - 0.5).slice(0, 4);
+  const numbers = [];
+  chosenPairs.forEach(p => numbers.push(p[0], p[1]));
+  const shuffledNumbers = numbers.sort(() => Math.random() - 0.5);
+
+  const area = document.getElementById('bubblesArea');
+  area.innerHTML = '';
+
+  shuffledNumbers.forEach((val, idx) => {
+    const btn = document.createElement('button');
+    const color = bubbleColors[idx % bubbleColors.length];
+    btn.className = 'bubble-btn';
+    btn.textContent = val;
+    btn.dataset.val = val;
+    btn.style.background = color.bg;
+    btn.style.borderColor = color.border;
+    btn.style.color = color.text;
+
+    btn.onclick = () => onBubbleClick(btn, val);
+    area.appendChild(btn);
+  });
+}
+
+function onBubbleClick(btn, val) {
+  if (isWaiting || btn.style.visibility === 'hidden') return;
+
+  if (!selectedBubble) {
+    // 첫 번째 버블 선택
+    selectedBubble = { el: btn, val: val };
+    btn.classList.add('selected');
+  } else {
+    // 같은 버블 다시 누르면 취소
+    if (selectedBubble.el === btn) {
+      btn.classList.remove('selected');
+      selectedBubble = null;
+      return;
+    }
+
+    // 두 번째 버블과 합 검사
+    const sum = selectedBubble.val + val;
+    if (sum === 10) {
+      score += 10;
+      document.getElementById('scoreBadge').textContent = `⭐ ${score}점`;
+      const fb = document.getElementById('feedbackMsg');
+      fb.className = 'feedback-text fb-good';
+      fb.textContent = `💥 팡! ${selectedBubble.val} + ${val} = 10 완벽해요!`;
+
+      selectedBubble.el.style.visibility = 'hidden';
+      btn.style.visibility = 'hidden';
+      selectedBubble.el.classList.remove('selected');
+      selectedBubble = null;
+
+      // 다 터뜨렸는지 확인
+      const remaining = Array.from(document.querySelectorAll('.bubble-btn')).filter(b => b.style.visibility !== 'hidden');
+      if (remaining.length === 0) {
+        handleSuccess(`🎊 모든 10 짝꿍을 다 찾았습니다! 다음 판 고고!`);
+      }
+    } else {
+      showWrong(`❌ ${selectedBubble.val} + ${val} = ${sum}이에요. 10이 되지 않아요!`);
+      selectedBubble.el.classList.remove('selected');
+      selectedBubble = null;
+    }
+  }
+}
+
+function handleSuccess(msg) {
+  isWaiting = true;
+  score += 10;
+  document.getElementById('scoreBadge').textContent = `⭐ ${score}점`;
+  const fb = document.getElementById('feedbackMsg');
+  fb.className = 'feedback-text fb-good';
+  fb.textContent = msg;
+
+  setTimeout(() => {
+    startNewRound();
+  }, 1300);
+}
+
+function showWrong(msg) {
+  const fb = document.getElementById('feedbackMsg');
+  fb.className = 'feedback-text fb-bad';
+  fb.textContent = msg;
+}
+</script>
+</body>
+</html>
