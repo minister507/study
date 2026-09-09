@@ -17,6 +17,9 @@
   .btn-mode.active { background: #1976d2; color: white; border-color: #1565c0; }
 
   .status-bar { display: flex; justify-content: space-between; align-items: center; background: #ffe0b2; padding: 10px 14px; border-radius: 14px; margin-bottom: 14px; font-size: 1.05rem; font-weight: bold; }
+  .status-left { display: flex; align-items: center; gap: 8px; }
+  .btn-restart { background: #fff; border: 1.5px solid #ff9800; color: #e65100; padding: 4px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+  .btn-restart:active { background: #ffe0b2; }
   .btn-sound { background: #ff9800; color: white; border: none; padding: 7px 14px; border-radius: 20px; font-size: 0.95rem; font-weight: bold; cursor: pointer; box-shadow: 0 3px 0 #e65100; }
   .btn-sound:active { transform: translateY(2px); box-shadow: 0 1px 0 #e65100; }
 
@@ -66,7 +69,10 @@
   </div>
 
   <div class="status-bar">
-    <span id="quizIndex">1번 / 10</span>
+    <div class="status-left">
+      <span id="quizIndex">1번 / 10</span>
+      <button class="btn-restart" onclick="restartCurrentGrade()" title="현재 급수 문제 섞어서 다시 시작">🔄 섞기</button>
+    </div>
     <button class="btn-sound" onclick="speakText()">🔊 문제 듣기</button>
   </div>
 
@@ -120,6 +126,7 @@ let grade = 1;
 let index = 0;
 let curMode = 'block';
 let enteredTokens = [];
+let currentQuizList = []; // 랜덤하게 섞인 문제 목록
 
 window.onload = () => {
   const sel = document.getElementById('gradeSelect');
@@ -129,13 +136,37 @@ window.onload = () => {
     opt.textContent = `<${g}급> ${DATA[g].title}`;
     sel.appendChild(opt);
   }
-  loadCurrentQuiz();
+  startGradeSession();
 };
+
+// 배열을 무작위로 섞는 셔플 함수 (Fisher-Yates)
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 급수를 시작하거나 재시작할 때 문제 순서를 무작위로 섞음
+function startGradeSession() {
+  currentQuizList = shuffleArray(DATA[grade].list);
+  index = 0;
+  loadCurrentQuiz();
+}
+
+function restartCurrentGrade() {
+  startGradeSession();
+  const fb = document.getElementById('feedbackText');
+  fb.className = 'feedback good';
+  fb.textContent = '🎲 문제 순서를 새로 섞었습니다!';
+  setTimeout(() => { fb.textContent = ''; }, 1000);
+}
 
 function onGradeChange() {
   grade = parseInt(document.getElementById('gradeSelect').value);
-  index = 0;
-  loadCurrentQuiz();
+  startGradeSession();
 }
 
 function switchMode(m) {
@@ -153,7 +184,7 @@ function loadCurrentQuiz() {
   document.getElementById('btnNextBlock').style.display = 'none';
   document.getElementById('noteAnswerArea').style.display = 'none';
 
-  const text = DATA[grade].list[index];
+  const text = currentQuizList[index];
   document.getElementById('quizIndex').textContent = `${index + 1}번 / 10`;
 
   if (curMode === 'block') {
@@ -165,7 +196,7 @@ function loadCurrentQuiz() {
 }
 
 function speakText() {
-  const text = DATA[grade].list[index];
+  const text = currentQuizList[index];
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -181,7 +212,7 @@ function setupTouchBlocks(text) {
   for (let ch of text) {
     tokens.push(ch === ' ' ? '␣' : ch);
   }
-  const shuffled = [...tokens].sort(() => Math.random() - 0.5);
+  const shuffled = shuffleArray(tokens);
 
   shuffled.forEach(t => {
     const btn = document.createElement('button');
@@ -224,7 +255,7 @@ function undoChar() {
 }
 
 function checkAnswer() {
-  const target = DATA[grade].list[index];
+  const target = currentQuizList[index];
   const user = enteredTokens.map(t => t.text === '␣' ? ' ' : t.text).join('');
   const fb = document.getElementById('feedbackText');
   if (user === target) {
@@ -262,8 +293,7 @@ function goNext() {
     if (grade < 12) {
       grade++;
       document.getElementById('gradeSelect').value = grade;
-      index = 0;
-      loadCurrentQuiz();
+      startGradeSession();
     }
   }
 }
