@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>내 사진으로 스케치북 따라그리기</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0; padding: 16px; font-family: -apple-system, sans-serif;
+      background: #f8f9fa; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+    }
+    header {
+      background: #fff; border-radius: 16px; padding: 10px 16px; margin-bottom: 12px;
+      display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .upload-btn {
+      background: #ff922b; color: #fff; padding: 8px 16px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;
+    }
+    input[type="file"] { display: none; }
+    button {
+      border: none; background: #ffe066; font-size: 16px; font-weight: bold; padding: 8px 14px; border-radius: 10px; cursor: pointer;
+    }
+    button:disabled { background: #dee2e6; cursor: not-allowed; }
+    .instruction-bar {
+      background: #fff3bf; border-left: 6px solid #fab005; padding: 10px 16px;
+      border-radius: 12px; font-size: 17px; font-weight: bold; color: #d9480f; margin-bottom: 10px;
+    }
+    .canvas-container {
+      flex: 1; background: #fff; border-radius: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;
+    }
+    canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+    #loadingMsg { position: absolute; font-size: 18px; font-weight: bold; color: #495057; display: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <label class="upload-btn" for="photoInput">📷 사진 찍기 / 올리기</label>
+      <input type="file" id="photoInput" accept="image/*">
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button id="prevBtn" disabled>◀ 이전</button>
+      <span id="stepBadge" style="font-weight: bold; min-width: 50px; text-align: center;">- / -</span>
+      <button id="nextBtn" disabled>다음 ▶</button>
+    </div>
+  </header>
+
+  <div class="instruction-bar" id="instructionText">
+    좋아하는 장난감이나 인형 사진을 찍어보세요!
+  </div>
+
+  <div class="canvas-container" id="canvasWrap">
+    <div id="loadingMsg">그림 단순화 변환 중... ⏳</div>
+    <canvas id="displayCanvas"></canvas>
+  </div>
+
+  <script>
+    let currentStep = 0;
+    let contourSteps = [];
+    const displayCanvas = document.getElementById('displayCanvas');
+    const ctx = displayCanvas.getContext('2d');
+    const loadingMsg = document.getElementById('loadingMsg');
+
+    document.getElementById('photoInput').addEventListener('change', handleImageUpload);
+
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      loadingMsg.style.display = 'block';
+      const img = new Image();
+      img.onload = () => {
+        processImageToSteps(img);
+        loadingMsg.style.display = 'none';
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    // 사진 단순화 및 3단계 윤곽선 그룹화 알고리즘
+    function processImageToSteps(img) {
+      const maxDim = 500;
+      let w = img.width;
+      let h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = (h / w) * maxDim; w = maxDim; }
+        else { w = (w / h) * maxDim; h = maxDim; }
+      }
+
+      displayCanvas.width = w;
+      displayCanvas.height = h;
+
+      // 1. 그레이스케일 및 콘트라스트 단순화
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+      const tCtx = tempCanvas.getContext('2d');
+      tCtx.drawImage(img, 0, 0, w, h);
+
+      const imgData = tCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      // 흑백 이진화 (간이 스케치 변환)
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114);
+        const val = avg > 110 ? 255 : 0; // 심플한 흑백 분리
+        data[i] = val; data[i+1] = val; data[i+2] = val;
+      }
+      tCtx.putImageData(imgData, 0, 0);
+
+      // 초등 1학년용 3단계 분할 (큰 외곽선 -> 내부 중간선 -> 디테일)
+      // 프로토타입: 높이/면적 기준으로 선을 3단계 그룹으로 나눔
+      contourSteps = [
+        { label: "1단계: 가장 큰 겉모습(외곽선)을 먼저 큼직하게 그려요!", ratio: 0.3 },
+        { label: "2단계: 안쪽에 들어가는 큰 특징들을 그려주세요.", ratio: 0.7 },
+        { label: "3단계: 작은 눈, 코나 디테일을 그려서 완성해요!", ratio: 1.0 }
+      ];
+
+      currentStep = 0;
+      updateUI(tempCanvas);
+    }
+
+    function renderStep(tempCanvas) {
+      const w = displayCanvas.width;
+      const h = displayCanvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (!tempCanvas) return;
+
+      // 현재 단계에 맞춰 마스킹 렌더링
+      ctx.drawImage(tempCanvas, 0, 0);
+      
+      // 초등 1학년이 보기 편하도록 캔버스 반전/강조 처리
+      const idata = ctx.getImageData(0, 0, w, h);
+      const d = idata.data;
+      const maxH = h * contourSteps[currentStep].ratio;
+
+      for (let i = 0; i < d.length; i += 4) {
+        const y = Math.floor((i / 4) / w);
+        if (d[i] === 0 && y <= maxH) {
+          // 이번 단계 강조 (오렌지/검정)
+          d[i] = 230; d[i+1] = 70; d[i+2] = 10;
+        } else {
+          d[i] = 255; d[i+1] = 255; d[i+2] = 255;
+        }
+      }
+      ctx.putImageData(idata, 0, 0);
+    }
+
+    let cachedCanvas = null;
+    function updateUI(canvas) {
+      if (canvas) cachedCanvas = canvas;
+      document.getElementById('stepBadge').textContent = `${currentStep + 1} / ${contourSteps.length}`;
+      document.getElementById('instructionText').textContent = contourSteps[currentStep].label;
+      document.getElementById('prevBtn').disabled = (currentStep === 0);
+      document.getElementById('nextBtn').disabled = (currentStep === contourSteps.length - 1);
+      renderStep(cachedCanvas);
+    }
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (currentStep < contourSteps.length - 1) { currentStep++; updateUI(); }
+    });
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentStep > 0) { currentStep--; updateUI(); }
+    });
+  </script>
+</body>
+</html>
